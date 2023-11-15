@@ -64,21 +64,23 @@ class Airfoil:
         lower = np.array(lower, dtype=float)
 
         # Unpack coordinates
-        self._x_upper, self._y_upper = upper
-        self._x_lower, self._y_lower = lower
+        self._x_upper = upper[0, :]
+        self._y_upper = upper[1, :]
+        self._x_lower = lower[0, :]
+        self._y_lower = lower[1, :]
 
         # Process coordinates
         self.norm_factor = 1
-        self._order_data_points()
-        self._normalise_data_points()
+        # self._order_data_points()
+        # self._normalise_data_points()
 
         # Remove duplicate points from coordinate vectors. x-values must be
         # unique. Values passed to iterp1d() must be monotonically increasing.
-        self._x_upper, idx_keep = np.unique(self._x_upper, return_index=True)
-        self._y_upper = self._y_upper[idx_keep]
+        # self._x_upper, idx_keep = np.unique(self._x_upper, return_index=True)
+        # self._y_upper = self._y_upper[idx_keep]
 
-        self._x_lower, idx_keep = np.unique(self._x_lower, return_index=True)
-        self._y_lower = self._y_lower[idx_keep]
+        # self._x_lower, idx_keep = np.unique(self._x_lower, return_index=True)
+        # self._y_lower = self._y_lower[idx_keep]
 
         # Make interpolation functions for 'y_upper' and 'y_lower'
         self._y_upper_interp = interp1d(
@@ -374,13 +376,13 @@ def gen_NACA4_airfoil(p, m, xx, n_points):
     def yt(xx, xsi):
         # Thickness distribution
 
-        a0 = 1.4845
-        a1 = 0.6300
-        a2 = 1.7580
-        a3 = 1.4215
-        a4 = 0.5075
+        a0 = 0.2969 #1.4845
+        a1 = -0.126 #0.6300
+        a2 = -0.3516 #1.7580
+        a3 = 0.2843 #1.4215
+        a4 = -0.1036 #0.5075
 
-        return xx*(a0*np.sqrt(xsi) - a1*xsi - a2*xsi**2 + a3*xsi**3 - a4*xsi**4)
+        return xx/0.2*(a0*np.sqrt(xsi) + a1*xsi + a2*xsi**2 + a3*xsi**3 + a4*xsi**4)
 
     def yc(p, m, xsi):
         # Camber line
@@ -402,7 +404,9 @@ def gen_NACA4_airfoil(p, m, xx, n_points):
 
         return yc, dyc
 
-    xsi = np.linspace(0, 1, n_points)
+    beta = np.linspace(0, np.pi, n_points)
+    # apply cosine spacing to xsi
+    xsi = 0.5*(1 - np.cos(beta))
 
     yt = yt(xx, xsi)
     yc, dyc = yc(p, m, xsi)
