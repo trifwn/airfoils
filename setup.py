@@ -6,8 +6,6 @@ import sys
 import re
 
 from setuptools import setup
-from setuptools.command.develop import develop
-from setuptools.command.sdist import sdist
 
 # See also: https://github.com/kennethreitz/setup.py/blob/master/setup.py
 here = os.path.abspath(os.path.dirname(__file__))
@@ -27,17 +25,12 @@ def main():
     if len(sys.argv) >= 2:
         command: str = sys.argv[1]
     else:
-        command = "install"
+        command = ""
 
-    if command == "dist_info":
-        setup(cmdclass={"sdist": sdist})
-    if command == "editable_wheel":
-        setup(cmdclass={"develop": develop})
-    if command == "install":
-        install(package, __version__)
-    elif command == "uninstall":
+    if command == "uninstall":
         uninstall(package)
     else:
+        install(package, __version__)
         print(f"Command {command} not recognized")
 
 
@@ -66,6 +59,24 @@ def uninstall(package: str) -> None:
     except ImportError:
         print("Error importing pip")
         return
-    pip.main(["uninstall", package, "-y"])
 
-main()
+    import sys, shutil
+    # clean up local egg-info
+    try:
+        shutil.rmtree(package + '.egg-info')
+    except:
+        pass     
+
+        # setup up uninstall arguments
+    args = sys.argv
+    del args[0:1+1]
+    args = ['uninstall', package] + args
+    
+    # uninstall
+    try:
+        pip.main(args)
+    except:
+        pass
+
+if __name__ == "__main__":
+    main()
