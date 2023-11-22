@@ -1,61 +1,72 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import setuptools
 import os
+import sys
+import re
 
-from src.airfoils.__version__ import __version__
+from setuptools import setup
+from setuptools.command.develop import develop
+from setuptools.command.sdist import sdist
 
 # See also: https://github.com/kennethreitz/setup.py/blob/master/setup.py
-
-NAME = 'airfoils'
-VERSION = __version__
-AUTHOR = 'Aaron Dettmann'
-EMAIL = 'dettmann@kth.se'
-DESCRIPTION = 'Airfoils (aerofoils)'
-URL = 'https://github.com/airinnova/airfoils'
-REQUIRES_PYTHON = '>=3.6.0'
-REQUIRED = [
-    'numpy',
-    'scipy',
-    'matplotlib',
-]
-README = 'README.rst'
-PACKAGE_DIR = 'src/'
-LICENSE = 'Apache License 2.0'
-SCRIPTS = []
-
 here = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(here, README), "r") as fp:
-    long_description = fp.read()
+def get_package_version() -> str:
+    """Get the package version from the __init__ file"""
+    __version__: str = re.findall(
+        r"""__version__ = ["']+([0-9\.]*)["']+""",
+        open("src/airfoils/__version__.py", encoding="UTF-8").read(),
+    )[0]
+    return __version__
 
-setuptools.setup(
-    name=NAME,
-    version=VERSION,
-    author=AUTHOR,
-    author_email=EMAIL,
-    description=DESCRIPTION,
-    long_description=long_description,
-    url=URL,
-    include_package_data=True,
-    scripts=SCRIPTS,
-    package_dir={'': PACKAGE_DIR},
-    license=LICENSE,
-    packages=[NAME],
-    python_requires=REQUIRES_PYTHON,
-    install_requires=REQUIRED,
-    # See: https://pypi.org/classifiers/
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        'Programming Language :: Python :: 3.6',
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Education",
-        "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering",
-        "Topic :: Scientific/Engineering :: Physics",
-    ],
-)
+def main():
+    package = 'airfoils'
+    __version__ = get_package_version()
+
+    if len(sys.argv) >= 2:
+        command: str = sys.argv[1]
+    else:
+        command = "install"
+
+    if command == "dist_info":
+        setup(cmdclass={"sdist": sdist})
+    if command == "editable_wheel":
+        setup(cmdclass={"develop": develop})
+    if command == "install":
+        install(package, __version__)
+    elif command == "uninstall":
+        uninstall(package)
+    else:
+        print(f"Command {command} not recognized")
+
+
+def install(package: str, version: str) -> None:
+    """INSTALL THE PACKAGE
+
+    Args:
+        package (str): Package Name
+        version (str): Version Number
+    """
+    setup(
+        name=package,
+        version=version,
+        include_package_data=True,
+    )
+
+
+def uninstall(package: str) -> None:
+    """Uninstall the package
+
+    Args:
+        package (str): Package Name
+    """
+    try:
+        import pip
+    except ImportError:
+        print("Error importing pip")
+        return
+    pip.main(["uninstall", package, "-y"])
+
+if __name__ == "__main__":
+    main()

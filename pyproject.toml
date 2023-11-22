@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["airfoils*"] 
+
+[project]
+name = "airfoils"
+authors = [
+    {name = "Aaron Dettmann", email = "dettmann@kth.se"},
+    {name = "Tryfonas Themas", email = "tryfonthem@gmail.com"},
+]
+description = "Airfoils (aerofoils)"
+readme = "README.rst"
+requires-python = ">=3.6.0"
+dynamic = ["version"]
+license = {text ='Apache License 2.0'}
+classifiers=[
+    "Programming Language :: Python :: 3",
+    'Programming Language :: Python :: 3.6',
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    'numpy',
+    'scipy',
+    'matplotlib',
+]
+
+[project.optional-dependencies]
+docs = ["sphinx",'sphinx-rtd-theme']
+dev = [
+  "codecov",
+  "pytest-cov",
+  "pytest",
+  "tox",
+]
+
+[project.urls]
+Repository = "https://github.com/trifwn/airfoils"
+
+
+# [tool.setuptools.dynamic]
+# version = {attr = "airfoils.__version__"}

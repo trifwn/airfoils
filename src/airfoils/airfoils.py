@@ -130,13 +130,13 @@ class Airfoil:
         re_4digits = re.compile(r"^\d{4}$")
 
         if re_4digits.match(naca_digits):
-            p = float(naca_digits[0])/10
-            m = float(naca_digits[1])/100
+            m = float(naca_digits[0])/100
+            p = float(naca_digits[1])/10
             xx = float(naca_digits[2:4])/100
         else:
             raise NACADefintionError("Identifier not recognised as valid NACA 4 definition")
 
-        upper, lower = gen_NACA4_airfoil(p, m, xx, n_points)
+        upper, lower = gen_NACA4_airfoil(m, p, xx, n_points)
         return cls(upper, lower)
 
     @classmethod
@@ -358,7 +358,7 @@ class MorphAirfoil:
         )
 
 
-def gen_NACA4_airfoil(p, m, xx, n_points):
+def gen_NACA4_airfoil(m, p, xx, n_points):
     """
     Generate upper and lower points for a NACA 4 airfoil
 
