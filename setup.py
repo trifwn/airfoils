@@ -68,5 +68,4 @@ def uninstall(package: str) -> None:
         return
     pip.main(["uninstall", package, "-y"])
 
-if __name__ == "__main__":
-    main()
+main()
