@@ -44,6 +44,42 @@ class NACADefintionError(Exception):
     pass
 
 
+class Interpolator(interp1d):
+    """
+    Interpolator class that allows for extrapolation
+
+    Note:
+        * This class is a wrapper around 'scipy.interpolate.interp1d'
+
+    Args:
+        :x: x-coordinates
+        :y: y-coordinates
+        :kind: Interpolation type
+        :bounds_error: (bool) If True, a ValueError is raised when interpolated values are requested outside of the domain of the input data
+        :fill_value: (str or float) If a string, it must be one of 'extrapolate', 'constant', 'nearest', 'zero', 'slinear', 'quadratic', or 'cubic'
+    """
+
+    def __init__(
+        self, x, y, kind="linear", bounds_error=False, fill_value="extrapolate"
+    ):
+        self.given_x = x
+        self.given_y = y
+        self.given_kind = kind
+        self.given_bounds_error = bounds_error
+        self.given_fill_value = fill_value
+
+        super().__init__(
+            x, y, kind=kind, bounds_error=bounds_error, fill_value=fill_value
+        )
+
+    def __setstate__(self, state) -> None:
+        print(type(state))
+        x, y, kind, bounds_error, fill_value = state
+        super().__init__(
+            x, y, kind=kind, bounds_error=bounds_error, fill_value=fill_value
+        )
+
+
 class Airfoil:
 
     def __init__(self, upper, lower):
@@ -69,6 +105,9 @@ class Airfoil:
         self._x_lower = lower[0, :]
         self._y_lower = lower[1, :]
 
+        self.min_x = np.min(self._x_upper)
+        self.max_x = np.max(self._x_upper)
+
         # Process coordinates
         self.norm_factor = 1
         # self._order_data_points()
@@ -83,20 +122,20 @@ class Airfoil:
         # self._y_lower = self._y_lower[idx_keep]
 
         # Make interpolation functions for 'y_upper' and 'y_lower'
-        self._y_upper_interp = interp1d(
+        self._y_upper_interp = Interpolator(
             self._x_upper,
             self._y_upper,
-            kind='cubic',
+            kind="linear",
             bounds_error=False,
-            fill_value="extrapolate"
+            fill_value="extrapolate",
         )
 
-        self._y_lower_interp = interp1d(
+        self._y_lower_interp = Interpolator(
             self._x_lower,
             self._y_lower,
-            kind='cubic',
+            kind="linear",
             bounds_error=False,
-            fill_value="extrapolate"
+            fill_value="extrapolate",
         )
 
     def __str__(self):
@@ -106,9 +145,16 @@ class Airfoil:
         return self.__class__.__name__ + "(upper, lower)"
 
     def y_upper(self, x):
+        # x-coordinate is between [0, 1]
+        # x must be set between [min(x_upper), max(x_upper)]
+        x = self.min_x + x * (self.max_x - self.min_x)
         return self._y_upper_interp(x)
 
     def y_lower(self, x):
+        # x-coordinate is between [0, 1]
+        # x must be set between [min(x_lower), max(x_lower)]
+
+        x = self.min_x + x * (self.max_x - self.min_x)
         return self._y_lower_interp(x)
 
     @classmethod
@@ -130,11 +176,13 @@ class Airfoil:
         re_4digits = re.compile(r"^\d{4}$")
 
         if re_4digits.match(naca_digits):
-            m = float(naca_digits[0])/100
-            p = float(naca_digits[1])/10
-            xx = float(naca_digits[2:4])/100
+            m = float(naca_digits[0]) / 100
+            p = float(naca_digits[1]) / 10
+            xx = float(naca_digits[2:4]) / 100
         else:
-            raise NACADefintionError("Identifier not recognised as valid NACA 4 definition")
+            raise NACADefintionError(
+                "Identifier not recognised as valid NACA 4 definition"
+            )
 
         upper, lower = gen_NACA4_airfoil(m, p, xx, n_points)
         return cls(upper, lower)
@@ -159,7 +207,9 @@ class Airfoil:
         """
 
         if not 0 <= eta <= 1:
-            raise ValueError(f"'eta' must be in range [0,1], given eta is {float(eta):.3f}")
+            raise ValueError(
+                f"'eta' must be in range [0,1], given eta is {float(eta):.3f}"
+            )
 
         x = np.linspace(0, 1, n_points)
 
@@ -168,8 +218,8 @@ class Airfoil:
         y_upper_af2 = airfoil2.y_upper(x)
         y_lower_af2 = airfoil2.y_lower(x)
 
-        y_upper_new = y_upper_af1*(1 - eta) + y_upper_af2*eta
-        y_lower_new = y_lower_af1*(1 - eta) + y_lower_af2*eta
+        y_upper_new = y_upper_af1 * (1 - eta) + y_upper_af2 * eta
+        y_lower_new = y_lower_af1 * (1 - eta) + y_lower_af2 * eta
 
         upper = np.array([x, y_upper_new])
         lower = np.array([x, y_lower_new])
@@ -182,10 +232,12 @@ class Airfoil:
         Returns a single 2 x N array with x and y-coordinates in separate columns
         """
 
-        all_points = np.array([
-            np.concatenate((self._x_upper, self._x_lower)),
-            np.concatenate((self._y_upper, self._y_lower))
-        ])
+        all_points = np.array(
+            [
+                np.concatenate((self._x_upper, self._x_lower)),
+                np.concatenate((self._y_upper, self._y_lower)),
+            ]
+        )
         return all_points
 
     def _order_data_points(self):
@@ -242,37 +294,39 @@ class Airfoil:
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         ax.set_xlim([0, 1])
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.axis('equal')
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.axis("equal")
         ax.grid()
 
-        ax.plot(self._x_upper, self._y_upper, '-', color='blue')
-        ax.plot(self._x_lower, self._y_lower, '-', color='green')
+        ax.plot(self._x_upper, self._y_upper, "-", color="blue")
+        ax.plot(self._x_lower, self._y_lower, "-", color="green")
 
-        if settings.get('points', False):
-            ax.plot(self.all_points[0, :], self.all_points[1, :], '.', color='grey')
+        if settings.get("points", False):
+            ax.plot(self.all_points[0, :], self.all_points[1, :], ".", color="grey")
 
-        if settings.get('camber', False):
-            x = np.linspace(0, 1, int(POINTS_AIRFOIL/2))
-            ax.plot(x, self.camber_line(x), '--', color='red')
+        if settings.get("camber", False):
+            x = np.linspace(0, 1, int(POINTS_AIRFOIL / 2))
+            ax.plot(x, self.camber_line(x), "--", color="red")
 
-        if settings.get('chord', False):
+        if settings.get("chord", False):
             pass
 
-        plt.subplots_adjust(left=0.10, bottom=0.10, right=0.98, top=0.98, wspace=None, hspace=None)
+        plt.subplots_adjust(
+            left=0.10, bottom=0.10, right=0.98, top=0.98, wspace=None, hspace=None
+        )
 
         if show:
             plt.show()
 
         if save:
-            path = settings.get('path', '.')
-            file_name = settings.get('file_name', False)
+            path = settings.get("path", ".")
+            file_name = settings.get("file_name", False)
 
             if not file_name:
-                now = datetime.strftime(datetime.now(), format='%F_%H%M%S')
-                file_type = 'png'
-                file_name = f'airfoils_{now}.{file_type}'
+                now = datetime.strftime(datetime.now(), format="%F_%H%M%S")
+                file_type = "png"
+                file_name = f"airfoils_{now}.{file_type}"
 
             fig.savefig(os.path.join(path, file_name))
             return file_name
@@ -290,7 +344,7 @@ class Airfoil:
             :camber_line: y-coordinates at given x positions
         """
 
-        return (self.y_upper(x) + self.y_lower(x))/2
+        return (self.y_upper(x) + self.y_lower(x)) / 2
 
     def camber_line_angle(self, x):
         """
@@ -303,23 +357,24 @@ class Airfoil:
             :theta: Camber line angle at given x positions
         """
 
-    ########################
+        ########################
         x = np.asarray(x)
         scalar_input = False
 
         if x.ndim == 0:
             x = x[None]  # Make 1D array
             scalar_input = True
-    ########################
+        ########################
 
         dydx = derivative(self.camber_line, x, dx=1e-12)
         theta = np.rad2deg(np.arctan(dydx))
         theta = np.array([0 if abs(x) > 50 else x for x in theta])
 
-    ########################
+        ########################
         if scalar_input:
             return np.squeeze(theta)
         return theta
+
     ########################
 
 
@@ -351,10 +406,7 @@ class MorphAirfoil:
         """
 
         return Airfoil.morph_new_from_two_foils(
-            self.airfoil1,
-            self.airfoil2,
-            eta=eta,
-            n_points=self.n_points
+            self.airfoil1, self.airfoil2, eta=eta, n_points=self.n_points
         )
 
 
@@ -376,28 +428,32 @@ def gen_NACA4_airfoil(m, p, xx, n_points):
     def yt(xx, xsi):
         # Thickness distribution
 
-        a0 = 0.2969 #1.4845
-        a1 = -0.126 #0.6300
-        a2 = -0.3516 #1.7580
-        a3 = 0.2843 #1.4215
-        a4 = -0.1036 #0.5075
+        a0 = 0.2969  # 1.4845
+        a1 = -0.126  # 0.6300
+        a2 = -0.3516  # 1.7580
+        a3 = 0.2843  # 1.4215
+        a4 = -0.1036  # 0.5075
 
-        return xx/0.2*(a0*np.sqrt(xsi) + a1*xsi + a2*xsi**2 + a3*xsi**3 + a4*xsi**4)
+        return (
+            xx
+            / 0.2
+            * (a0 * np.sqrt(xsi) + a1 * xsi + a2 * xsi**2 + a3 * xsi**3 + a4 * xsi**4)
+        )
 
     def yc(p, m, xsi):
         # Camber line
 
         def yc_xsi_lt_p(xsi):
-            return (m/p**2)*(2*p*xsi - xsi**2)
+            return (m / p**2) * (2 * p * xsi - xsi**2)
 
         def dyc_xsi_lt_p(xsi):
-            return (2*m/p**2)*(p - xsi)
+            return (2 * m / p**2) * (p - xsi)
 
         def yc_xsi_ge_p(xsi):
-            return (m/(1 - p)**2)*(1 - 2*p + 2*p*xsi - xsi**2)
+            return (m / (1 - p) ** 2) * (1 - 2 * p + 2 * p * xsi - xsi**2)
 
         def dyc_xsi_ge_p(xsi):
-            return (2*m/(1 - p)**2)*(p - xsi)
+            return (2 * m / (1 - p) ** 2) * (p - xsi)
 
         yc = np.array([yc_xsi_lt_p(x) if x < p else yc_xsi_ge_p(x) for x in xsi])
         dyc = np.array([dyc_xsi_lt_p(x) if x < p else dyc_xsi_ge_p(x) for x in xsi])
@@ -406,16 +462,16 @@ def gen_NACA4_airfoil(m, p, xx, n_points):
 
     beta = np.linspace(0, np.pi, n_points)
     # apply cosine spacing to xsi
-    xsi = 0.5*(1 - np.cos(beta))
+    xsi = 0.5 * (1 - np.cos(beta))
 
     yt = yt(xx, xsi)
     yc, dyc = yc(p, m, xsi)
     theta = np.arctan(dyc)
 
-    x_upper = xsi - yt*np.sin(theta)
-    y_upper = yc + yt*np.cos(theta)
-    x_lower = xsi + yt*np.sin(theta)
-    y_lower = yc - yt*np.cos(theta)
+    x_upper = xsi - yt * np.sin(theta)
+    y_upper = yc + yt * np.cos(theta)
+    x_lower = xsi + yt * np.sin(theta)
+    y_lower = yc - yt * np.cos(theta)
 
     upper = np.array([x_upper, y_upper])
     lower = np.array([x_lower, y_lower])
