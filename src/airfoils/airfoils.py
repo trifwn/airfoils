@@ -32,7 +32,7 @@ import re
 
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.misc import derivative
+from findiff import Diff
 import matplotlib.pyplot as plt
 
 POINTS_AIRFOIL = 200
@@ -216,44 +216,44 @@ class Airfoil:
         upper, lower = gen_NACA4_airfoil(m, p, xx, n_points)
         return cls(upper, lower)
 
-    @classmethod
-    def morph_new_from_two_foils(cls, airfoil1, airfoil2, eta, n_points):
-        """
-        Create an airfoil object from a linear interpolation between two
-        airfoil objects
+    # @classmethod
+    # def morph_new_from_two_foils(cls, airfoil1, airfoil2, eta, n_points):
+    #     """
+    #     Create an airfoil object from a linear interpolation between two
+    #     airfoil objects
 
-        Note:
-            * This is an alternative constructor method
+    #     Note:
+    #         * This is an alternative constructor method
 
-        Args:
-            :airfoil1: Airfoil object at eta = 0
-            :airfoil2: Airfoil object at eta = 1
-            :eta: Relative position where eta = [0, 1]
-            :n_points: Number of points for new airfoil object
+    #     Args:
+    #         :airfoil1: Airfoil object at eta = 0
+    #         :airfoil2: Airfoil object at eta = 1
+    #         :eta: Relative position where eta = [0, 1]
+    #         :n_points: Number of points for new airfoil object
 
-        Returns:
-            :airfoil: New airfoil instance
-        """
+    #     Returns:
+    #         :airfoil: New airfoil instance
+    #     """
 
-        if not 0 <= eta <= 1:
-            raise ValueError(
-                f"'eta' must be in range [0,1], given eta is {float(eta):.3f}"
-            )
+    #     if not 0 <= eta <= 1:
+    #         raise ValueError(
+    #             f"'eta' must be in range [0,1], given eta is {float(eta):.3f}"
+    #         )
 
-        x = np.linspace(0, 1, n_points)
+    #     x = np.linspace(0, 1, n_points)
 
-        y_upper_af1 = airfoil1.y_upper(x)
-        y_lower_af1 = airfoil1.y_lower(x)
-        y_upper_af2 = airfoil2.y_upper(x)
-        y_lower_af2 = airfoil2.y_lower(x)
+    #     y_upper_af1 = airfoil1.y_upper(x)
+    #     y_lower_af1 = airfoil1.y_lower(x)
+    #     y_upper_af2 = airfoil2.y_upper(x)
+    #     y_lower_af2 = airfoil2.y_lower(x)
 
-        y_upper_new = y_upper_af1 * (1 - eta) + y_upper_af2 * eta
-        y_lower_new = y_lower_af1 * (1 - eta) + y_lower_af2 * eta
+    #     y_upper_new = y_upper_af1 * (1 - eta) + y_upper_af2 * eta
+    #     y_lower_new = y_lower_af1 * (1 - eta) + y_lower_af2 * eta
 
-        upper = np.array([x, y_upper_new])
-        lower = np.array([x, y_lower_new])
+    #     upper = np.array([x, y_upper_new])
+    #     lower = np.array([x, y_lower_new])
 
-        return cls(upper, lower)
+    #     return cls(upper, lower)
 
     @property
     def all_points(self):
@@ -395,7 +395,8 @@ class Airfoil:
             scalar_input = True
         ########################
 
-        dydx = derivative(self.camber_line, x, dx=1e-12)
+        d_dx = Diff(0, 1e-12)
+        dydx = d_dx(self.camber_line)
         theta = np.rad2deg(np.arctan(dydx))
         theta = np.array([0 if abs(x) > 50 else x for x in theta])
 
